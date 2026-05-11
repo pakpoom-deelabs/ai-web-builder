@@ -31,9 +31,8 @@ jobs:
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
-          # รันแบบจบในตัว (-p) และข้ามการขอสิทธิ์เขียนไฟล์เพื่อไม่ให้ Pipeline ค้าง
-          claude -p "คำสั่งของคุณคือ: $ISSUE_TITLE รายละเอียด: $ISSUE_BODY ลงมือสร้างหรือแก้ไขไฟล์ในโปรเจกต์นี้ได้เลย" \
-            --dangerously-skip-permissions
+          # ใช้ yes "y" ต่อท่อ (Pipe) ส่งคำว่า 'y' และ Enter เข้าไปรอกดอนุญาตเครื่องมือทุกตัวแบบอัตโนมัติ
+          yes "y" | claude -p "คำสั่งของคุณคือ: $ISSUE_TITLE รายละเอียด: $ISSUE_BODY ลงมือสร้างและแก้ไขไฟล์ได้เลย"
 
       # 2. ขั้นตอนสร้าง Pull Request อัตโนมัติ
       - name: Create Pull Request
