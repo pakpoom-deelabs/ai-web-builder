@@ -7,8 +7,10 @@ on:
 jobs:
   build-and-pr:
     runs-on: ubuntu-latest
-    
-    # 1. ต้องเปิดสิทธิ์ให้ Action เขียนโค้ดและสร้าง PR ได้
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
     permissions:
       contents: write
       pull-requests: write
@@ -20,7 +22,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code
