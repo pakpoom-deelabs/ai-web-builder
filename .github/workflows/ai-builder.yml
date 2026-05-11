@@ -1,15 +1,14 @@
 name: AI Web Builder Workflow
 
-# สั่งให้ทำงานเมื่อมีการเปิด Issue ใหม่
 on:
   issues:
     types: [opened]
 
 jobs:
-  build-website:
+  build-and-pr:
     runs-on: ubuntu-latest
     
-    # กำหนดสิทธิ์ให้ Job นี้สามารถเขียนโค้ดและ PR ได้
+    # 1. ต้องเปิดสิทธิ์ให้ Action เขียนโค้ดและสร้าง PR ได้
     permissions:
       contents: write
       pull-requests: write
@@ -17,8 +16,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # ดึงประวัติโค้ดมาทั้งหมดเพื่อให้ AI เข้าใจ Context
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -34,15 +31,25 @@ jobs:
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
-          # สั่งรัน Claude Code 
-          # ใช้ echo เพื่อส่ง prompt แบบทางเดียว (Non-interactive) ให้ CLI ทำงานแล้วจบ
-          echo "คุณคือ Senior Frontend Developer คำสั่งของคุณคือ: $ISSUE_TITLE รายละเอียด: $ISSUE_BODY ให้เขียนโค้ด Next.js และ Tailwind ตามที่ขอลงในโปรเจกต์นี้โดยตรง โดยไม่ต้องอธิบายขั้นตอน" | claude
+          # รันแบบจบในตัว (-p) และข้ามการขอสิทธิ์เขียนไฟล์เพื่อไม่ให้ Pipeline ค้าง
+          claude -p "คำสั่งของคุณคือ: $ISSUE_TITLE รายละเอียด: $ISSUE_BODY ลงมือสร้างหรือแก้ไขไฟล์ในโปรเจกต์นี้ได้เลย" \
+            --dangerously-skip-permissions
 
+      # 2. ขั้นตอนสร้าง Pull Request อัตโนมัติ
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
-          commit-message: "feat: AI generated code for #${{ github.event.issue.number }}"
+          # ใช้ Token พื้นฐานของ GitHub ที่มีมาให้อยู่แล้ว ไม่ต้องสร้าง Secret เพิ่ม
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "feat: AI generated code for Issue #${{ github.event.issue.number }}"
           title: "AI Implementation: ${{ github.event.issue.title }}"
-          body: "Pull Request นี้ถูกสร้างอัตโนมัติโดย Claude Code CLI อ้างอิงจาก Issue #${{ github.event.issue.number }}"
+          body: |
+            🚀 Pull Request นี้ถูกสร้างอัตโนมัติโดย Claude Code CLI
+            อ้างอิงความต้องการจาก Issue #${{ github.event.issue.number }}
+            
+            **สิ่งที่ควรทำ:**
+            - [ ] ตรวจสอบโค้ดที่ AI เขียน
+            - [ ] ทดสอบรันหน้าเว็บ
+            - [ ] กดยืนยัน (Merge) หรือคอมเมนต์ให้ AI แก้ไขต่อ
           branch: "ai-feature/issue-${{ github.event.issue.number }}"
           base: "main"
