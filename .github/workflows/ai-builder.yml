@@ -1,0 +1,48 @@
+name: AI Web Builder Workflow
+
+# สั่งให้ทำงานเมื่อมีการเปิด Issue ใหม่
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  build-website:
+    runs-on: ubuntu-latest
+    
+    # กำหนดสิทธิ์ให้ Job นี้สามารถเขียนโค้ดและ PR ได้
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # ดึงประวัติโค้ดมาทั้งหมดเพื่อให้ AI เข้าใจ Context
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Let Claude generate the code
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          # สั่งรัน Claude Code 
+          # ใช้ echo เพื่อส่ง prompt แบบทางเดียว (Non-interactive) ให้ CLI ทำงานแล้วจบ
+          echo "คุณคือ Senior Frontend Developer คำสั่งของคุณคือ: $ISSUE_TITLE รายละเอียด: $ISSUE_BODY ให้เขียนโค้ด Next.js และ Tailwind ตามที่ขอลงในโปรเจกต์นี้โดยตรง โดยไม่ต้องอธิบายขั้นตอน" | claude
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "feat: AI generated code for #${{ github.event.issue.number }}"
+          title: "AI Implementation: ${{ github.event.issue.title }}"
+          body: "Pull Request นี้ถูกสร้างอัตโนมัติโดย Claude Code CLI อ้างอิงจาก Issue #${{ github.event.issue.number }}"
+          branch: "ai-feature/issue-${{ github.event.issue.number }}"
+          base: "main"
