@@ -45,8 +45,8 @@ jobs:
             echo "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>$REPO_NAME</title></head><body><h1>Welcome to $REPO_NAME</h1></body></html>" > index.html
             git checkout -b main
             git add index.html
-            git config user.name "AI Factory Bot"
-            git config user.email "bot@yourdomain.com"
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git commit -m "Initial commit"
             git push -u origin main
           else
@@ -101,8 +101,8 @@ jobs:
           REPO_NAME: ${{ steps.format-name.outputs.REPO_NAME }}
         run: |
           cd $REPO_NAME
-          git config user.name "AI Factory Bot"
-          git config user.email "bot@yourdomain.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .
           git diff --quiet && git diff --staged --quiet || (git commit -m "🔧 Update code by AI" && git push origin main)
 
