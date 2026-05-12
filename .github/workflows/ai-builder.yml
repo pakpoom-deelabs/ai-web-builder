@@ -103,11 +103,11 @@ jobs:
           branch: "ai-feature/issue-${{ github.event.issue.number }}"
           base: "main"
 
-      - name: Reply to Customer
+      - name: Notify Developer
         if: github.event_name == 'issue_comment'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh issue comment ${{ github.event.issue.number }} \
             --repo ${{ github.repository }} \
-            --body "✨ ผมได้อัปเดตโค้ดตามที่คุณสั่งเรียบร้อยแล้วครับ! สามารถตรวจสอบความเปลี่ยนแปลงได้ที่แท็บ Pull requests เลยครับ 🚀"
+            --body "✨ โค้ดถูกอัปเดตและดันขึ้น PR เรียบร้อยแล้วครับ! ไปรีวิวโค้ดหรือสั่งแก้ต่อได้เลยครับ 🚀"
