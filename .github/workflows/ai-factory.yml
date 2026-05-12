@@ -62,12 +62,7 @@ jobs:
           {
             "permissions": {
               "defaultMode": "acceptEdits",
-              "allow": {
-                "Write": ["*"],
-                "Edit": ["*"],
-                "Read": ["*"],
-                "Bash": ["*"]
-              }
+              "allow": ["Write(*)", "Edit(*)", "Read(*)", "Bash(*)"]
             }
           }
           EOF
