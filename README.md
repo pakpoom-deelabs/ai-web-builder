@@ -1,24 +1,26 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI Web Builder
 
-## Getting Started
+This repository contains an automated GitHub Actions workflow that acts as an AI-powered developer. It listens to GitHub Issues and uses the [Claude Code CLI](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview) to automatically write code, commit changes, and create Pull Requests.
 
-First, run the development server:
+## How it Works
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. **Create an Issue**: Open a new GitHub Issue and describe the feature or bug fix you want.
+2. **AI Processing**: The `ai-builder.yml` workflow is triggered automatically. It will:
+   - Create a new branch for your feature (`ai-feature/issue-<number>`).
+   - Run the Claude Code CLI using your issue title and description as the prompt.
+   - Give Claude permission to modify files, write code, and run commands.
+3. **Pull Request**: Once Claude completes the task, the workflow automatically creates a Pull Request back to the `main` branch.
+4. **Iterate**: You can review the code, test it, or leave additional comments on the Issue. The AI will read your comments, make further adjustments, and update the PR.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Workflow File
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The core logic is located in: `.github/workflows/ai-builder.yml`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Prerequisites
+
+To use this workflow in your own repository, you need:
+- `ANTHROPIC_API_KEY`: Configured in your GitHub Repository Secrets to authenticate with Claude.
+- Proper GitHub Action permissions (read/write access to repository contents and pull requests).
 
 ## Learn More
 
