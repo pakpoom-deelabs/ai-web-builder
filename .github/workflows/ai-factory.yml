@@ -42,6 +42,7 @@ jobs:
             echo "Creating new repository: $REPO_NAME"
             gh repo create "$REPO_NAME" --public --clone
             cd "$REPO_NAME"
+            gh auth setup-git
             echo "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>$REPO_NAME</title></head><body><h1>Welcome to $REPO_NAME</h1></body></html>" > index.html
             git checkout -b main
             git add index.html
@@ -96,6 +97,7 @@ jobs:
           REPO_NAME: ${{ steps.format-name.outputs.REPO_NAME }}
         run: |
           cd $REPO_NAME
+          gh auth setup-git
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .
