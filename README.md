@@ -1,38 +1,45 @@
-# AI Web Builder
+# AI Software Factory 🏭🤖
 
-This repository contains an automated GitHub Actions workflow that acts as an AI-powered developer. It listens to GitHub Issues and uses the [Claude Code CLI](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview) to automatically write code, commit changes, and create Pull Requests.
+An automated AI-powered development pipeline that treats GitHub Issues as a ticketing system to build, update, and deploy websites completely autonomously. 
 
-## How it Works
+Powered by the **Claude Code CLI** and **GitHub Actions**, this system allows you to generate individual child repositories and deploy them to Vercel simply by typing a prompt.
 
-1. **Create an Issue**: Open a new GitHub Issue and describe the feature or bug fix you want.
-2. **AI Processing**: The `ai-builder.yml` workflow is triggered automatically. It will:
-   - Create a new branch for your feature (`ai-feature/issue-<number>`).
-   - Run the Claude Code CLI using your issue title and description as the prompt.
-   - Give Claude permission to modify files, write code, and run commands.
-3. **Pull Request**: Once Claude completes the task, the workflow automatically creates a Pull Request back to the `main` branch.
-4. **Iterate**: You can review the code, test it, or leave additional comments on the Issue. The AI will read your comments, make further adjustments, and update the PR.
+## 🚀 How it Works
 
-## Workflow File
+1. **Submit a Request**: Open a new GitHub Issue in this repository. 
+   - **Title**: The name of your project (e.g., `midnight-brew-cafe`). This will become the child repository name.
+   - **Body**: The prompt describing the website you want to build (e.g., "Create a dark mode landing page...").
+2. **AI Processing**: The `ai-factory.yml` workflow kicks in automatically. It will:
+   - Check if a repository with that name already exists. If not, it creates a new one and initializes it.
+   - Run the **Claude Code CLI** to generate the HTML/CSS/JS based on your prompt.
+   - Perform a **Self-Healing Loop**: If it detects code formatting or syntax errors (via Prettier/HTMLHint), Claude will automatically attempt to fix its own code.
+3. **Deployment**: The finished code is committed to the child repository and automatically deployed to Vercel.
+4. **Report & Feedback**: The bot comments back on your Issue with the Live URL, source code link, and the Claude token/cost usage stats. If you want changes, just reply to that comment!
 
-The core logic is located in: `.github/workflows/ai-builder.yml`.
+## ⚙️ Prerequisites & Setup
 
-## Prerequisites
+To run this factory in your own environment, you need to configure three GitHub Repository Secrets:
 
-To use this workflow in your own repository, you need:
-- `ANTHROPIC_API_KEY`: Configured in your GitHub Repository Secrets to authenticate with Claude.
-- Proper GitHub Action permissions (read/write access to repository contents and pull requests).
+### 1. `ANTHROPIC_API_KEY` (Claude Authentication)
+You have two options for authenticating Claude:
+- **Option A (Developer API Key)**: Generate a standard API key from the [Anthropic Console](https://console.anthropic.com/).
+- **Option B (Claude Pro / Team Plan)**: If you want to use your subscription quota instead of paying per API call, you can generate a long-lived OAuth token.
+  1. Open a terminal on your local machine.
+  2. Run: `claude setup-token`
+  3. Log in via your browser.
+  4. Copy the generated long-lived token.
+  *Paste either the API Key or the Long-lived Token into the `ANTHROPIC_API_KEY` GitHub secret.*
 
-## Learn More
+### 2. `GH_PAT` (GitHub Personal Access Token)
+Required to create and clone child repositories. 
+- Create a classic PAT with `repo` and `workflow` scopes.
 
-To learn more about Next.js, take a look at the following resources:
+### 3. `VERCEL_TOKEN` (Vercel Deployment)
+Required to automatically hosting the generated websites.
+- Generate a token from your [Vercel Account Settings](https://vercel.com/account/tokens).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🛠️ Architecture
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Workflow File**: `.github/workflows/ai-factory.yml`
+- **Dependencies**: No complex frameworks. It generates vanilla HTML/CSS/JS for maximum speed and simplicity.
+- **Permissions**: Claude is configured via `.claude/settings.json` to safely bypass interactive prompts in CI/CD.
