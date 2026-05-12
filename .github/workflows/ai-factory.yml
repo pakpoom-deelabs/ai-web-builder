@@ -80,14 +80,10 @@ jobs:
             echo "Additional Requirements: $COMMENT_BODY" > .prompt.txt
             echo "Please review the existing HTML/CSS/JS files and modify them to meet the new requirements." >> .prompt.txt
           fi
-
-      - name: Inject Claude OAuth Session
-        env:
-          CLAUDE_SESSION: ${{ secrets.CLAUDE_OAUTH_SESSION }}
-        run: echo "$CLAUDE_SESSION" > ~/.claude.json
-
+        
       - name: Let Claude generate the code
         env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           REPO_NAME: ${{ steps.format-name.outputs.REPO_NAME }}
         run: |
           PROMPT=$(cat .prompt.txt)
