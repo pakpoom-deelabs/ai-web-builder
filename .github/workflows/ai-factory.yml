@@ -79,11 +79,11 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
           if [ "$EVENT_NAME" == "issues" ]; then
-            echo "คำสั่งรายละเอียด: $ISSUE_BODY" > .prompt.txt
-            echo "นี่คือโปรเจกต์เว็บแบบ HTML ธรรมดา โปรดสร้างและแก้ไขไฟล์เว็บไซต์ (HTML/CSS/JS) ตามความต้องการของลูกค้า" >> .prompt.txt
+            echo "Task Description: $ISSUE_BODY" > .prompt.txt
+            echo "This is a plain HTML/CSS/JS project. Please generate the website structure and content based on the user's requirements." >> .prompt.txt
           else
-            echo "คำสั่งแก้ไขเพิ่มเติม: $COMMENT_BODY" > .prompt.txt
-            echo "โปรดตรวจสอบไฟล์ HTML/CSS/JS ในโปรเจกต์ และแก้ไขให้ตรงตามความต้องการ" >> .prompt.txt
+            echo "Additional Requirements: $COMMENT_BODY" > .prompt.txt
+            echo "Please review the existing HTML/CSS/JS files and modify them to meet the new requirements." >> .prompt.txt
           fi
 
       - name: Let Claude generate the code
@@ -126,18 +126,22 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
         run: |
           if [ "$EVENT_NAME" == "issues" ]; then
-            MSG="✅ **เว็บไซต์ของคุณสร้างเสร็จและออนไลน์เรียบร้อยแล้ว!** 🎉
+            MSG="✅ **Deployment Successful**
             
-            🌐 **ดูเว็บจริงได้ที่:** $LIVE_URL
-            📦 **ดู Source Code:** https://github.com/$GITHUB_USER/$REPO_NAME
+            The requested project has been generated and deployed.
             
-            *(หากต้องการแก้ไขอะไรเพิ่มเติม สามารถคอมเมนต์บอกในกระทู้นี้ได้เลยครับ!)*"
+            🌐 **Live Preview:** $LIVE_URL
+            📦 **Source Repository:** https://github.com/$GITHUB_USER/$REPO_NAME
+            
+            _To request further modifications, please reply directly to this issue._"
           else
-            MSG="✨ **ผมได้อัปเดตโค้ดตามที่คุณสั่งเรียบร้อยแล้วครับ!** 🚀
+            MSG="✨ **Update Successful**
             
-            🌐 **ดูเว็บที่อัปเดตได้ที่:** $LIVE_URL
+            The codebase has been updated based on your recent feedback.
             
-            *(มีตรงไหนให้ปรับอีก พิมพ์คอมเมนต์บอกได้เลยครับ)*"
+            🌐 **Live Preview:** $LIVE_URL
+            
+            _If you need any further adjustments, feel free to leave another comment._"
           fi
           
           gh issue comment ${{ github.event.issue.number }} \
