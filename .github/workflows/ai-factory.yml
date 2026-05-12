@@ -6,10 +6,15 @@ on:
   issue_comment:
     types: [created]
 
-jobs:
+concurrency:
+  group: factory-issue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:   
   build-and-deploy:
     if: (!github.event.issue.pull_request) && (github.event.comment == null || github.event.comment.user.type != 'Bot')
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     permissions:
@@ -18,6 +23,17 @@ jobs:
       issues: write
 
     steps:
+      - name: "\U0001F3F7\uFE0F Label: Building"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue edit ${{ github.event.issue.number }} \
+            --repo ${{ github.repository }} \
+            --remove-label "deployed,failed" 2>/dev/null || true
+          gh issue edit ${{ github.event.issue.number }} \
+            --repo ${{ github.repository }} \
+            --add-label "building"
+
       - name: Format Repository Name
         id: format-name
         run: |
@@ -32,6 +48,18 @@ jobs:
 
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code
+
+      - name: Validate Claude Authentication
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "🔑 Validating Claude authentication..."
+          if claude -p "respond with OK" --output-format json 2>&1 | grep -q '"type":"result"'; then
+            echo "✅ Claude authentication is valid."
+          else
+            echo "::error::Claude authentication failed. Your OAuth token may have expired. Run 'claude setup-token' locally and update the ANTHROPIC_API_KEY secret."
+            exit 1
+          fi
 
       - name: Initialize or Clone Child Repository
         env:
@@ -68,6 +96,16 @@ jobs:
           }
           EOF
 
+      - name: Setup .gitignore for Child Repo
+        run: |
+          REPO_NAME="${{ steps.format-name.outputs.REPO_NAME }}"
+          cat << 'EOF' >> $REPO_NAME/.gitignore
+          claude_out.json
+          verify.log
+          .claude/
+          .vercel/
+          EOF
+
       - name: Prepare Prompt
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -95,20 +133,24 @@ jobs:
           TOTAL_IN_TOKENS=0
           TOTAL_OUT_TOKENS=0
           
+          CLAUDE_OK=false
+          
           function run_claude() {
             local p="$1"
             echo "🤖 Prompting Claude..."
             claude -p "$p" --permission-mode bypassPermissions --output-format json > claude_out.json 2>&1 || true
             JSON_DATA=$(grep -E '^{"type":"result"' claude_out.json | head -n 1)
             if [ -n "$JSON_DATA" ]; then
+              CLAUDE_OK=true
               echo "$JSON_DATA" | jq -r '.result'
               COST=$(echo "$JSON_DATA" | jq -r '.total_cost_usd // 0')
               IN_TOKENS=$(echo "$JSON_DATA" | jq -r '.usage.input_tokens // 0')
               OUT_TOKENS=$(echo "$JSON_DATA" | jq -r '.usage.output_tokens // 0')
-              TOTAL_COST=$(awk "BEGIN {print $TOTAL_COST + $COST}")
+              TOTAL_COST=$(awk "BEGIN {printf \"%.6f\", $TOTAL_COST + $COST}")
               TOTAL_IN_TOKENS=$((TOTAL_IN_TOKENS + IN_TOKENS))
               TOTAL_OUT_TOKENS=$((TOTAL_OUT_TOKENS + OUT_TOKENS))
             else
+              echo "⚠️ Claude did not return a valid result."
               cat claude_out.json
             fi
           }
@@ -116,15 +158,22 @@ jobs:
           # 1. Initial Code Generation
           run_claude "$PROMPT"
           
+          if [ "$CLAUDE_OK" != "true" ]; then
+            echo "::error::Claude failed to generate code. Aborting."
+            exit 1
+          fi
+          
           # 2. Self-Healing Loop
           MAX_RETRIES=2
           ATTEMPT=1
+          VERIFY_PASSED=false
           VERIFY_CMD="npx prettier --write . && npx htmlhint '**/*.html'"
           
           while [ $ATTEMPT -le $MAX_RETRIES ]; do
             echo "🔍 Running verification (Attempt $ATTEMPT/$MAX_RETRIES)..."
             if eval $VERIFY_CMD > verify.log 2>&1; then
               echo "✅ Verification passed!"
+              VERIFY_PASSED=true
               break
             else
               echo "❌ Verification failed! Asking Claude to fix it..."
@@ -137,9 +186,14 @@ jobs:
             fi
           done
           
+          if [ "$VERIFY_PASSED" != "true" ]; then
+            echo "::warning::Self-healing loop exhausted. Code may contain issues."
+          fi
+          
           echo "COST=$TOTAL_COST" >> $GITHUB_OUTPUT
           echo "IN_TOKENS=$TOTAL_IN_TOKENS" >> $GITHUB_OUTPUT
           echo "OUT_TOKENS=$TOTAL_OUT_TOKENS" >> $GITHUB_OUTPUT
+          echo "VERIFY_PASSED=$VERIFY_PASSED" >> $GITHUB_OUTPUT
 
       - name: Commit and Push Changes
         env:
@@ -174,7 +228,13 @@ jobs:
           COST: ${{ steps.claude_run.outputs.COST }}
           IN_TOKENS: ${{ steps.claude_run.outputs.IN_TOKENS }}
           OUT_TOKENS: ${{ steps.claude_run.outputs.OUT_TOKENS }}
+          VERIFY_PASSED: ${{ steps.claude_run.outputs.VERIFY_PASSED }}
         run: |
+          VERIFY_NOTE=""
+          if [ "$VERIFY_PASSED" != "true" ]; then
+            VERIFY_NOTE="
+          ⚠️ **Note:** Code verification did not fully pass. Please review the output carefully."
+          fi
           if [ "$EVENT_NAME" == "issues" ]; then
             MSG="✅ **Deployment Successful**
             
@@ -187,6 +247,7 @@ jobs:
             📊 **Usage Stats:**
             - **Tokens:** \`${IN_TOKENS} in\` / \`${OUT_TOKENS} out\`
             - **Estimated Cost:** \`\$${COST}\`
+            ${VERIFY_NOTE}
             
             _To request further modifications, please reply directly to this issue._"
           else
@@ -200,6 +261,7 @@ jobs:
             📊 **Usage Stats:**
             - **Tokens:** \`${IN_TOKENS} in\` / \`${OUT_TOKENS} out\`
             - **Estimated Cost:** \`\$${COST}\`
+            ${VERIFY_NOTE}
             
             _If you need any further adjustments, feel free to leave another comment._"
           fi
@@ -207,3 +269,27 @@ jobs:
           gh issue comment ${{ github.event.issue.number }} \
             --repo ${{ github.repository }} \
             --body "$MSG"
+
+      - name: "\U0001F3F7\uFE0F Label: Deployed"
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue edit ${{ github.event.issue.number }} \
+            --repo ${{ github.repository }} \
+            --remove-label "building" 2>/dev/null || true
+          gh issue edit ${{ github.event.issue.number }} \
+            --repo ${{ github.repository }} \
+            --add-label "deployed"
+
+      - name: "\U0001F3F7\uFE0F Label: Failed"
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue edit ${{ github.event.issue.number }} \
+            --repo ${{ github.repository }} \
+            --remove-label "building" 2>/dev/null || true
+          gh issue edit ${{ github.event.issue.number }} \
+            --repo ${{ github.repository }} \
+            --add-label "failed"
