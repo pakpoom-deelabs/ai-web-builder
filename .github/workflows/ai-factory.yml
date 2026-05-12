@@ -90,24 +90,56 @@ jobs:
         run: |
           PROMPT=$(cat .prompt.txt)
           cd $REPO_NAME
-          claude -p "$PROMPT" --permission-mode bypassPermissions --output-format json > claude_out.json 2>&1 || true
           
-          JSON_DATA=$(grep -E '^{"type":"result"' claude_out.json | head -n 1)
-          if [ -n "$JSON_DATA" ]; then
-            echo "$JSON_DATA" | jq -r '.result'
-            COST=$(echo "$JSON_DATA" | jq -r '.total_cost_usd // 0')
-            IN_TOKENS=$(echo "$JSON_DATA" | jq -r '.usage.input_tokens // 0')
-            OUT_TOKENS=$(echo "$JSON_DATA" | jq -r '.usage.output_tokens // 0')
-          else
-            cat claude_out.json
-            COST="0"
-            IN_TOKENS="0"
-            OUT_TOKENS="0"
-          fi
+          TOTAL_COST=0
+          TOTAL_IN_TOKENS=0
+          TOTAL_OUT_TOKENS=0
           
-          echo "COST=$COST" >> $GITHUB_OUTPUT
-          echo "IN_TOKENS=$IN_TOKENS" >> $GITHUB_OUTPUT
-          echo "OUT_TOKENS=$OUT_TOKENS" >> $GITHUB_OUTPUT
+          function run_claude() {
+            local p="$1"
+            echo "🤖 Prompting Claude..."
+            claude -p "$p" --permission-mode bypassPermissions --output-format json > claude_out.json 2>&1 || true
+            JSON_DATA=$(grep -E '^{"type":"result"' claude_out.json | head -n 1)
+            if [ -n "$JSON_DATA" ]; then
+              echo "$JSON_DATA" | jq -r '.result'
+              COST=$(echo "$JSON_DATA" | jq -r '.total_cost_usd // 0')
+              IN_TOKENS=$(echo "$JSON_DATA" | jq -r '.usage.input_tokens // 0')
+              OUT_TOKENS=$(echo "$JSON_DATA" | jq -r '.usage.output_tokens // 0')
+              TOTAL_COST=$(awk "BEGIN {print $TOTAL_COST + $COST}")
+              TOTAL_IN_TOKENS=$((TOTAL_IN_TOKENS + IN_TOKENS))
+              TOTAL_OUT_TOKENS=$((TOTAL_OUT_TOKENS + OUT_TOKENS))
+            else
+              cat claude_out.json
+            fi
+          }
+          
+          # 1. Initial Code Generation
+          run_claude "$PROMPT"
+          
+          # 2. Self-Healing Loop
+          MAX_RETRIES=2
+          ATTEMPT=1
+          VERIFY_CMD="npx prettier --write . && npx htmlhint '**/*.html'"
+          
+          while [ $ATTEMPT -le $MAX_RETRIES ]; do
+            echo "🔍 Running verification (Attempt $ATTEMPT/$MAX_RETRIES)..."
+            if eval $VERIFY_CMD > verify.log 2>&1; then
+              echo "✅ Verification passed!"
+              break
+            else
+              echo "❌ Verification failed! Asking Claude to fix it..."
+              ERROR_LOG=$(cat verify.log)
+              FIX_PROMPT="The system ran code verification and found the following errors:
+          $ERROR_LOG
+          Please review the errors and fix the code to resolve them."
+              run_claude "$FIX_PROMPT"
+              ATTEMPT=$((ATTEMPT+1))
+            fi
+          done
+          
+          echo "COST=$TOTAL_COST" >> $GITHUB_OUTPUT
+          echo "IN_TOKENS=$TOTAL_IN_TOKENS" >> $GITHUB_OUTPUT
+          echo "OUT_TOKENS=$TOTAL_OUT_TOKENS" >> $GITHUB_OUTPUT
 
       - name: Commit and Push Changes
         env:
