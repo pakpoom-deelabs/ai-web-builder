@@ -61,7 +61,92 @@ jobs:
             exit 1
           fi
 
+      - name: Phase 1 - Project Manager (Natural Conversation)
+        id: decision
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          PROMPT="คุณคือ PM ที่เป็นมิตร กำลังคุยกับลูกค้าที่อยากได้เว็บไซต์
+
+          ข้อมูลจากลูกค้า:
+          $(cat .conversation.json)
+
+          หน้าที่ของคุณ:
+          1. ถ้าข้อมูลยังไม่ชัดเจนพอ → ตอบแบบเป็นธรรมชาติ ถามเพิ่มนิดหน่อย
+          2. ถ้าข้อมูลพอแล้ว → สร้าง build_prompt สำหรับ developer
+
+          **การตอบแบบ natural ตัวอย่าง:**
+          - \"เข้าใจเลย! ช่วยบอกอีกนิด - อยากให้เว็บมีลุคแบบไหน? มีเว็บที่ชอบอยู่แล้วส่งมาได้ หรือบอกสั้นๆ ว่า 'ขายของ' ก็พอ เดี๋ยวจัดให้\"
+          - \"โอเค! ขอถามเพิ่มนิดหนึ่ง - เว็บนี้เอาไว้ทำอะไร? มี reference หรือ mockup ไหม?\"
+
+          **การตอบเมื่อพร้อม build:**
+          - รวบรวม requirements ทั้งหมดเป็น comprehensive build_prompt
+          - ระบุ assumptions ที่ AI ตัดสินใจเองด้วย
+
+          **Output format (JSON):**
+          {
+            \"action\": \"ask\" หรือ \"build\",
+            \"reply_message\": \"ข้อความถามลูกค้า (ถ้า action=ask)\",
+            \"build_prompt\": \"prompt สำหรับ developer (ถ้า action=build)\"
+          }
+
+          IMPORTANT: ตอบเป็น JSON อย่างเดียว ไม่ต้องมี markdown หรือคำอธิบาย"
+          
+          echo "🤖 PM กำลังประเมินความต้องการ..."
+          claude -p "$PROMPT" --permission-mode bypassPermissions --output-format json > decision_out.json 2>&1 || true
+          
+          JSON_RESULT=$(grep -E '^{"type":"result"' decision_out.json | head -n 1 | jq -r '.result')
+          
+          CLEAN_JSON=$(echo "$JSON_RESULT" | sed -n '/^{/,/^}/p')
+          if [ -z "$CLEAN_JSON" ]; then
+             CLEAN_JSON=$(echo "$JSON_RESULT" | sed 's/```json//g; s/```//g')
+          fi
+          
+          ACTION=$(echo "$CLEAN_JSON" | jq -r '.action')
+          
+          if [ "$ACTION" == "ask" ]; then
+            REPLY=$(echo "$CLEAN_JSON" | jq -r '.reply_message')
+            echo "ACTION=ask" >> $GITHUB_OUTPUT
+            echo "REPLY<<EOF" >> $GITHUB_OUTPUT
+            echo "$REPLY" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            echo "PM ถามเพิ่ม: $REPLY"
+          elif [ "$ACTION" == "build" ]; then
+            BUILD_PROMPT=$(echo "$CLEAN_JSON" | jq -r '.build_prompt')
+            echo "ACTION=build" >> $GITHUB_OUTPUT
+            echo "$BUILD_PROMPT" > .prompt.txt
+            echo "นี่คือ plain HTML/CSS/JS project สร้าง website ตาม requirements" >> .prompt.txt
+            echo "PM พร้อมสร้างแล้ว"
+          else
+            echo "::warning::ไม่สามารถ parse PM decision ได้ จะสร้างด้วยข้อมูลที่มี"
+            echo "ACTION=build" >> $GITHUB_OUTPUT
+            if [ "${{ github.event_name }}" == "issues" ]; then
+              echo "Task Description: ${{ github.event.issue.body }}" > .prompt.txt
+            else
+              echo "Additional Requirements: ${{ github.event.comment.body }}" > .prompt.txt
+            fi
+            echo "นี่คือ plain HTML/CSS/JS project สร้าง website ตาม requirements" >> .prompt.txt
+          fi
+
+      - name: Phase 1 - ถามเพิ่ม (Natural)
+        if: steps.decision.outputs.ACTION == 'ask'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPLY: ${{ steps.decision.outputs.REPLY }}
+        run: |
+          gh issue comment ${{ github.event.issue.number }} \
+            --repo ${{ github.repository }} \
+            --body "$REPLY"
+          
+          gh issue edit ${{ github.event.issue.number }} \
+            --repo ${{ github.repository }} \
+            --remove-label "building" 2>/dev/null || true
+          gh issue edit ${{ github.event.issue.number }} \
+            --repo ${{ github.repository }} \
+            --add-label "waiting-for-user"
+
       - name: Initialize or Clone Child Repository
+        if: steps.decision.outputs.ACTION == 'build'
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
           REPO_NAME: ${{ steps.format-name.outputs.REPO_NAME }}
@@ -84,6 +169,7 @@ jobs:
           fi
 
       - name: Configure CI Permissions for Claude
+        if: steps.decision.outputs.ACTION == 'build'
         run: |
           REPO_NAME="${{ steps.format-name.outputs.REPO_NAME }}"
           mkdir -p $REPO_NAME/.claude
@@ -97,6 +183,7 @@ jobs:
           EOF
 
       - name: Setup .gitignore for Child Repo
+        if: steps.decision.outputs.ACTION == 'build'
         run: |
           REPO_NAME="${{ steps.format-name.outputs.REPO_NAME }}"
           cat << 'EOF' >> $REPO_NAME/.gitignore
@@ -106,21 +193,8 @@ jobs:
           .vercel/
           EOF
 
-      - name: Prepare Prompt
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          ISSUE_BODY: ${{ github.event.issue.body }}
-          COMMENT_BODY: ${{ github.event.comment.body }}
-        run: |
-          if [ "$EVENT_NAME" == "issues" ]; then
-            echo "Task Description: $ISSUE_BODY" > .prompt.txt
-            echo "This is a plain HTML/CSS/JS project. Please generate the website structure and content based on the user's requirements." >> .prompt.txt
-          else
-            echo "Additional Requirements: $COMMENT_BODY" > .prompt.txt
-            echo "Please review the existing HTML/CSS/JS files and modify them to meet the new requirements." >> .prompt.txt
-          fi
-        
       - name: Let Claude generate the code
+        if: steps.decision.outputs.ACTION == 'build'
         id: claude_run
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -167,7 +241,7 @@ jobs:
           MAX_RETRIES=2
           ATTEMPT=1
           VERIFY_PASSED=false
-          VERIFY_CMD="npx prettier --write . && npx htmlhint '**/*.html'"
+          VERIFY_CMD="npx --yes prettier --write . && npx --yes htmlhint '**/*.html'"
           
           while [ $ATTEMPT -le $MAX_RETRIES ]; do
             echo "🔍 Running verification (Attempt $ATTEMPT/$MAX_RETRIES)..."
@@ -196,6 +270,7 @@ jobs:
           echo "VERIFY_PASSED=$VERIFY_PASSED" >> $GITHUB_OUTPUT
 
       - name: Commit and Push Changes
+        if: steps.decision.outputs.ACTION == 'build'
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
           REPO_NAME: ${{ steps.format-name.outputs.REPO_NAME }}
@@ -208,6 +283,7 @@ jobs:
           git diff --quiet && git diff --staged --quiet || (git commit -m "🔧 Update code by AI" && git push origin main)
 
       - name: Deploy to Vercel
+        if: steps.decision.outputs.ACTION == 'build'
         id: vercel_deploy
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -219,6 +295,7 @@ jobs:
           echo "URL=$LIVE_URL" >> $GITHUB_OUTPUT
 
       - name: Reply to Issue
+        if: steps.decision.outputs.ACTION == 'build'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO_NAME: ${{ steps.format-name.outputs.REPO_NAME }}
@@ -271,7 +348,7 @@ jobs:
             --body "$MSG"
 
       - name: "\U0001F3F7\uFE0F Label: Deployed"
-        if: success()
+        if: success() && steps.decision.outputs.ACTION == 'build'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
