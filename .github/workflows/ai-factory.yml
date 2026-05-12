@@ -180,7 +180,8 @@ jobs:
             
             The requested project has been generated and deployed.
             
-            🌐 **Live Preview:** $LIVE_URL
+            🌐 **Live Preview (Deployment):** $LIVE_URL
+            🌍 **Public Domain:** https://${REPO_NAME}.vercel.app
             📦 **Source Repository:** https://github.com/$GITHUB_USER/$REPO_NAME
             
             📊 **Usage Stats:**
@@ -193,7 +194,8 @@ jobs:
             
             The codebase has been updated based on your recent feedback.
             
-            🌐 **Live Preview:** $LIVE_URL
+            🌐 **Live Preview (Deployment):** $LIVE_URL
+            🌍 **Public Domain:** https://${REPO_NAME}.vercel.app
             
             📊 **Usage Stats:**
             - **Tokens:** \`${IN_TOKENS} in\` / \`${OUT_TOKENS} out\`
