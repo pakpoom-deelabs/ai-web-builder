@@ -45,6 +45,8 @@ jobs:
             echo "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>$REPO_NAME</title></head><body><h1>Welcome to $REPO_NAME</h1></body></html>" > index.html
             git checkout -b main
             git add index.html
+            git config user.name "AI Factory Bot"
+            git config user.email "bot@yourdomain.com"
             git commit -m "Initial commit"
             git push -u origin main
           else
@@ -112,7 +114,7 @@ jobs:
         run: |
           cd $REPO_NAME
           # เนื่องจากเป็น static HTML Vercel จะไม่ถามอะไรเยอะ สามารถ Deploy ได้เลย
-          LIVE_URL=$(npx vercel deploy --prod --token $VERCEL_TOKEN --yes)
+          LIVE_URL=$(npx vercel deploy --prod --name "$REPO_NAME" --token $VERCEL_TOKEN --yes)
           echo "URL=$LIVE_URL" >> $GITHUB_OUTPUT
 
       - name: Reply to Issue
