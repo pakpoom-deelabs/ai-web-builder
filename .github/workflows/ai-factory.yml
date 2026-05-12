@@ -83,13 +83,31 @@ jobs:
           fi
         
       - name: Let Claude generate the code
+        id: claude_run
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           REPO_NAME: ${{ steps.format-name.outputs.REPO_NAME }}
         run: |
           PROMPT=$(cat .prompt.txt)
           cd $REPO_NAME
-          claude -p "$PROMPT" --permission-mode bypassPermissions
+          claude -p "$PROMPT" --permission-mode bypassPermissions --output-format json > claude_out.json 2>&1 || true
+          
+          JSON_DATA=$(grep -E '^{"type":"result"' claude_out.json | head -n 1)
+          if [ -n "$JSON_DATA" ]; then
+            echo "$JSON_DATA" | jq -r '.result'
+            COST=$(echo "$JSON_DATA" | jq -r '.total_cost_usd // 0')
+            IN_TOKENS=$(echo "$JSON_DATA" | jq -r '.usage.input_tokens // 0')
+            OUT_TOKENS=$(echo "$JSON_DATA" | jq -r '.usage.output_tokens // 0')
+          else
+            cat claude_out.json
+            COST="0"
+            IN_TOKENS="0"
+            OUT_TOKENS="0"
+          fi
+          
+          echo "COST=$COST" >> $GITHUB_OUTPUT
+          echo "IN_TOKENS=$IN_TOKENS" >> $GITHUB_OUTPUT
+          echo "OUT_TOKENS=$OUT_TOKENS" >> $GITHUB_OUTPUT
 
       - name: Commit and Push Changes
         env:
@@ -121,6 +139,9 @@ jobs:
           GITHUB_USER: ${{ github.repository_owner }}
           LIVE_URL: ${{ steps.vercel_deploy.outputs.URL }}
           EVENT_NAME: ${{ github.event_name }}
+          COST: ${{ steps.claude_run.outputs.COST }}
+          IN_TOKENS: ${{ steps.claude_run.outputs.IN_TOKENS }}
+          OUT_TOKENS: ${{ steps.claude_run.outputs.OUT_TOKENS }}
         run: |
           if [ "$EVENT_NAME" == "issues" ]; then
             MSG="✅ **Deployment Successful**
@@ -130,6 +151,10 @@ jobs:
             🌐 **Live Preview:** $LIVE_URL
             📦 **Source Repository:** https://github.com/$GITHUB_USER/$REPO_NAME
             
+            📊 **Usage Stats:**
+            - **Tokens:** \`${IN_TOKENS} in\` / \`${OUT_TOKENS} out\`
+            - **Estimated Cost:** \`\$${COST}\`
+            
             _To request further modifications, please reply directly to this issue._"
           else
             MSG="✨ **Update Successful**
@@ -137,6 +162,10 @@ jobs:
             The codebase has been updated based on your recent feedback.
             
             🌐 **Live Preview:** $LIVE_URL
+            
+            📊 **Usage Stats:**
+            - **Tokens:** \`${IN_TOKENS} in\` / \`${OUT_TOKENS} out\`
+            - **Estimated Cost:** \`\$${COST}\`
             
             _If you need any further adjustments, feel free to leave another comment._"
           fi
