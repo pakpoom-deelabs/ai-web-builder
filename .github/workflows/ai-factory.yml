@@ -60,6 +60,12 @@ jobs:
             echo "::error::Claude authentication failed. Your OAuth token may have expired. Run 'claude setup-token' locally and update the CLAUDE_CODE_OAUTH_TOKEN secret."
             exit 1
           fi
+      - name: Fetch Conversation History
+        id: fetch-history
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue view ${{ github.event.issue.number }} --repo ${{ github.repository }} --json title,body,comments --jq '{title: .title, body: .body, comments: [.comments[].body]}' > .conversation.json
 
       - name: Phase 1 - Project Manager (Natural Conversation)
         id: decision
