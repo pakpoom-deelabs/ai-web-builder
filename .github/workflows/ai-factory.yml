@@ -51,13 +51,13 @@ jobs:
 
       - name: Validate Claude Authentication
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
           echo "🔑 Validating Claude authentication..."
           if claude -p "respond with OK" --output-format json 2>&1 | grep -q '"type":"result"'; then
             echo "✅ Claude authentication is valid."
           else
-            echo "::error::Claude authentication failed. Your OAuth token may have expired. Run 'claude setup-token' locally and update the ANTHROPIC_API_KEY secret."
+            echo "::error::Claude authentication failed. Your OAuth token may have expired. Run 'claude setup-token' locally and update the CLAUDE_CODE_OAUTH_TOKEN secret."
             exit 1
           fi
 
@@ -123,7 +123,7 @@ jobs:
       - name: Let Claude generate the code
         id: claude_run
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           REPO_NAME: ${{ steps.format-name.outputs.REPO_NAME }}
         run: |
           PROMPT=$(cat .prompt.txt)
