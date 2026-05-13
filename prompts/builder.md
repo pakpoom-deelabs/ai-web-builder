@@ -23,13 +23,28 @@ Each layout differs in **typography, structure, spacing, and mood** — NOT in
 color. Color comes from a separate palette switcher (see below) and is applied
 via CSS custom properties so palette changes repaint all 3 layouts at once.
 
-### Suggested layout directions
+### Choosing the 3 directions
 
-1. **Editorial** — serif-driven (Playfair Display / Cormorant), minimalist, generous whitespace, centered hero, elegant pacing
-2. **Bold Modern** — large geometric sans (Inter / Space Grotesk), asymmetric grid, magazine-style menu cards, confident hierarchy
-3. **Warm Boutique** — softer humanist sans with optional script accent (DM Sans / Caveat), two-column blocks, handcrafted feel
+Decide the three directions yourself based on the brief — business type, items,
+hours, contact channels, and any tone hints in the Notes field. Pick three
+angles that feel right *for this specific business*. Don't follow a fixed
+menu of templates; let the data lead.
 
-Each layout must include all required sections (below) with the same business data.
+Examples of how to think (not prescriptions, just illustrations):
+- A noodle shop might want one casual street-food feel, one cleaner modern feel, one upscale dinner feel
+- A specialty coffee shop might want one cozy editorial, one minimalist Scandi, one playful boutique
+- A salon might want one elegant magazine, one bold contemporary, one feminine soft
+- A consulting firm might want one minimal corporate, one editorial gravitas, one modern startup
+
+What every layout must satisfy:
+- Different Google Fonts than the other two (serif vs sans, different weights, different x-heights) — combine all needed families into ONE `<link>` at the top of `<head>`
+- Different structural approach (centered vs asymmetric, single-column vs multi-column, full-bleed hero vs contained, etc.)
+- Different spacing rhythm and visual density
+- Different overall mood — don't recolor the same template three times
+- All required sections (below) with the same business data
+- All color tokens via the CSS variables defined in the palette system (no hardcoded hex in layout markup)
+
+If two layouts end up feeling too similar, redo one. Variety is the point.
 
 ## Color palettes
 
