@@ -72,32 +72,10 @@ jobs:
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
-          PROMPT="คุณคือ PM ที่เป็นมิตร กำลังคุยกับลูกค้าที่อยากได้เว็บไซต์
+          TEMPLATE=$(cat prompts/pm.md)
+          CONVERSATION=$(cat .conversation.json)
+          PROMPT="${TEMPLATE//\{\{CONVERSATION\}\}/$CONVERSATION}"
 
-          ข้อมูลจากลูกค้า:
-          $(cat .conversation.json)
-
-          หน้าที่ของคุณ:
-          1. ถ้าข้อมูลยังไม่ชัดเจนพอ → ตอบแบบเป็นธรรมชาติ ถามเพิ่มนิดหน่อย
-          2. ถ้าข้อมูลพอแล้ว → สร้าง build_prompt สำหรับ developer
-
-          **การตอบแบบ natural ตัวอย่าง:**
-          - \"เข้าใจเลย! ช่วยบอกอีกนิด - อยากให้เว็บมีลุคแบบไหน? มีเว็บที่ชอบอยู่แล้วส่งมาได้ หรือบอกสั้นๆ ว่า 'ขายของ' ก็พอ เดี๋ยวจัดให้\"
-          - \"โอเค! ขอถามเพิ่มนิดหนึ่ง - เว็บนี้เอาไว้ทำอะไร? มี reference หรือ mockup ไหม?\"
-
-          **การตอบเมื่อพร้อม build:**
-          - รวบรวม requirements ทั้งหมดเป็น comprehensive build_prompt
-          - ระบุ assumptions ที่ AI ตัดสินใจเองด้วย
-
-          **Output format (JSON):**
-          {
-            \"action\": \"ask\" หรือ \"build\",
-            \"reply_message\": \"ข้อความถามลูกค้า (ถ้า action=ask)\",
-            \"build_prompt\": \"prompt สำหรับ developer (ถ้า action=build)\"
-          }
-
-          IMPORTANT: ตอบเป็น JSON อย่างเดียว ไม่ต้องมี markdown หรือคำอธิบาย"
-          
           echo "🤖 PM กำลังประเมินความต้องการ..."
           claude -p "$PROMPT" --permission-mode bypassPermissions --output-format json > decision_out.json 2>&1 || true
           
@@ -121,7 +99,7 @@ jobs:
             BUILD_PROMPT=$(echo "$CLEAN_JSON" | jq -r '.build_prompt')
             echo "ACTION=build" >> $GITHUB_OUTPUT
             echo "$BUILD_PROMPT" > .prompt.txt
-            echo "นี่คือ plain HTML/CSS/JS project สร้าง website ตาม requirements" >> .prompt.txt
+            cat prompts/builder.md >> .prompt.txt
             echo "PM พร้อมสร้างแล้ว"
           else
             echo "::warning::ไม่สามารถ parse PM decision ได้ จะสร้างด้วยข้อมูลที่มี"
@@ -131,7 +109,7 @@ jobs:
             else
               echo "Additional Requirements: ${{ github.event.comment.body }}" > .prompt.txt
             fi
-            echo "นี่คือ plain HTML/CSS/JS project สร้าง website ตาม requirements" >> .prompt.txt
+            cat prompts/builder.md >> .prompt.txt
           fi
 
       - name: Phase 1 - ถามเพิ่ม (Natural)
@@ -207,6 +185,7 @@ jobs:
           REPO_NAME: ${{ steps.format-name.outputs.REPO_NAME }}
         run: |
           PROMPT=$(cat .prompt.txt)
+          FIX_TEMPLATE=$(cat prompts/fix.md)
           cd $REPO_NAME
           
           TOTAL_COST=0
@@ -258,9 +237,7 @@ jobs:
             else
               echo "❌ Verification failed! Asking Claude to fix it..."
               ERROR_LOG=$(cat verify.log)
-              FIX_PROMPT="The system ran code verification and found the following errors:
-          $ERROR_LOG
-          Please review the errors and fix the code to resolve them."
+              FIX_PROMPT="${FIX_TEMPLATE//\{\{ERROR_LOG\}\}/$ERROR_LOG}"
               run_claude "$FIX_PROMPT"
               ATTEMPT=$((ATTEMPT+1))
             fi
