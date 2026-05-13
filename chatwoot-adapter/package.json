@@ -1,0 +1,31 @@
+{
+  "name": "chatwoot-github-adapter",
+  "version": "1.0.0",
+  "description": "Adapter to sync Chatwoot conversations with GitHub Issues",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate deploy"
+  },
+  "dependencies": {
+    "@octokit/rest": "^20.1.1",
+    "express": "^4.21.0",
+    "pino": "^9.4.0",
+    "pino-http": "^10.3.0",
+    "@prisma/client": "^5.20.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.7.4",
+    "prisma": "^5.20.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.6.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
