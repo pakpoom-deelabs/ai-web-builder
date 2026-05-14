@@ -18,7 +18,7 @@ Powered by the **Claude Code CLI** and **GitHub Actions**, this system allows yo
 
 ## ⚙️ Prerequisites & Setup
 
-To run this factory in your own environment, you need to configure four GitHub Repository Secrets:
+To run this factory in your own environment, you need to configure five GitHub Repository Secrets:
 
 ### 1. `CLAUDE_CODE_OAUTH_TOKEN` (Claude Authentication)
 A long-lived OAuth token that lets the workflow authenticate as your Claude Pro / Team account.
@@ -38,13 +38,53 @@ Required to create, push to, and delete child repositories.
 Required to automatically host the generated websites.
 - Generate a token at https://vercel.com/account/tokens.
 
-### 4. `DATABASE_URL` (Neon Postgres — build tracking)
+### 4. `VERCEL_TEAM_ID` (Vercel team scoping)
+Required when generated sites deploy under a Vercel **team** (not your personal account). Lets the API attach custom domains to the right project.
+- Find it at: https://vercel.com/teams/&lt;your-team&gt;/settings (under "Team ID")
+- Or via API: `curl -H "Authorization: Bearer $VERCEL_TOKEN" https://api.vercel.com/v2/teams`
+
+### 5. `DATABASE_URL` (Neon Postgres — build tracking)
 Lets the workflow log every generated site and build run to Postgres so you can dashboard / analyze them later.
 - Create a Neon project (Postgres 17, region close to you), copy the **pooled** connection string from Neon Console → Connection Details.
 - Apply the schema once: `psql "$DATABASE_URL" -f scripts/db/schema.sql`.
 - Optional — if you don't set this secret, the workflow still builds and deploys; the DB-logging step just skips itself.
 
 > `.env.example` at the repo root has the same list with copy-pasteable comments.
+
+## 🌐 Custom domain setup
+
+Every generated site is published at a branded subdomain instead of `*.vercel.app`. The pattern:
+
+```
+demo-<slug>.deelabs.co
+```
+
+e.g. issue `cafe-somjai` → `https://demo-cafe-somjai.deelabs.co`
+
+### One-time DNS setup (Cloudflare)
+
+Add a **single wildcard CNAME** at your DNS provider:
+
+| Setting | Value |
+|---|---|
+| Type | CNAME |
+| Name | `*` |
+| Target | `cname.vercel-dns.com` |
+| Proxy | **DNS only** (gray cloud — wildcards can't be proxied on free/Pro plans) |
+| TTL | Auto |
+
+After this, every new site auto-attaches its subdomain via the Vercel API — you never touch DNS again.
+
+### Changing the pattern
+
+The prefix and base domain are set as env vars in the `Deploy to Vercel` step of `main.yml`:
+
+```yaml
+BASE_DOMAIN: deelabs.co
+DOMAIN_PREFIX: demo-
+```
+
+Change them there to customize. If you don't want a prefix, set `DOMAIN_PREFIX:` to an empty string.
 
 ## 🧹 Auto-cleanup of stale sites
 
