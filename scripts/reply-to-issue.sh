@@ -6,6 +6,7 @@ set -euo pipefail
 : "${LIVE_URL:?LIVE_URL is required}"
 : "${EVENT_NAME:?EVENT_NAME is required}"
 : "${ISSUE_NUMBER:?ISSUE_NUMBER is required}"
+PUBLIC_DOMAIN="${PUBLIC_DOMAIN:-$LIVE_URL}"
 : "${GITHUB_REPO:?GITHUB_REPO is required}"
 : "${GH_TOKEN:?GH_TOKEN is required}"
 
@@ -26,7 +27,7 @@ if [ "$EVENT_NAME" = "issues" ]; then
 The requested project has been generated and deployed.
 
 🌐 **Live Preview (Deployment):** $LIVE_URL
-🌍 **Public Domain:** https://${REPO_NAME}.vercel.app
+🌍 **Public Domain:** $PUBLIC_DOMAIN
 📦 **Source Repository:** https://github.com/$GITHUB_USER/$REPO_NAME
 
 📊 **Usage Stats:**
@@ -41,7 +42,7 @@ else
 The codebase has been updated based on your recent feedback.
 
 🌐 **Live Preview (Deployment):** $LIVE_URL
-🌍 **Public Domain:** https://${REPO_NAME}.vercel.app
+🌍 **Public Domain:** $PUBLIC_DOMAIN
 
 📊 **Usage Stats:**
 - **Tokens:** \`${IN_TOKENS} in\` / \`${OUT_TOKENS} out\`
