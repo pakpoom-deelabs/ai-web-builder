@@ -34,3 +34,8 @@ CREATE TABLE IF NOT EXISTS build_runs (
 
 CREATE INDEX IF NOT EXISTS idx_build_runs_site_id  ON build_runs(site_id);
 CREATE INDEX IF NOT EXISTS idx_build_runs_ended_at ON build_runs(ended_at DESC);
+
+-- "protected" flag: cleanup workflow skips rows where this is TRUE.
+-- Toggle manually for real customers:  UPDATE sites SET protected = TRUE WHERE slug = '...';
+ALTER TABLE sites ADD COLUMN IF NOT EXISTS protected BOOLEAN NOT NULL DEFAULT FALSE;
+CREATE INDEX IF NOT EXISTS idx_sites_protected_updated ON sites(protected, updated_at);

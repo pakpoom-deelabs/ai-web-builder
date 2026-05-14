@@ -30,8 +30,9 @@ A long-lived OAuth token that lets the workflow authenticate as your Claude Pro 
 > Subscription quota is used instead of pay-per-API-call. If you prefer a developer API key, you'd need to modify `main.yml` to read `ANTHROPIC_API_KEY` instead.
 
 ### 2. `GH_PAT` (GitHub Personal Access Token)
-Required to create and clone child repositories.
-- Create a classic PAT with `repo` and `workflow` scopes at https://github.com/settings/tokens.
+Required to create, push to, and delete child repositories.
+- Create a classic PAT at https://github.com/settings/tokens with scopes: **`repo`**, **`workflow`**, **`delete_repo`**.
+- `delete_repo` is only needed for the auto-cleanup workflow (see below); the build workflow works fine without it.
 
 ### 3. `VERCEL_TOKEN` (Vercel Deployment)
 Required to automatically host the generated websites.
@@ -45,8 +46,36 @@ Lets the workflow log every generated site and build run to Postgres so you can 
 
 > `.env.example` at the repo root has the same list with copy-pasteable comments.
 
+## 🧹 Auto-cleanup of stale sites
+
+The factory's 1:1:1 model (1 issue → 1 GitHub repo → 1 Vercel project) keeps each customer cleanly isolated, but the dashboards fill up over time. A scheduled cleanup workflow removes anything that's been abandoned.
+
+- **Workflow**: `.github/workflows/cleanup.yml` runs daily at 04:00 UTC, or manually via Actions → "Cleanup Stale Sites" → Run workflow.
+- **Criteria**: a site is deleted if its `sites.updated_at` is older than `INACTIVE_DAYS` (default 10) **and** its `protected` column is `FALSE`.
+- **What gets deleted**: the GitHub child repo, the Vercel project, and the DB rows (`build_runs` cascade-deletes with `sites`).
+
+### Protecting real customer sites
+
+To exempt a site from cleanup, set the `protected` flag in the DB:
+```sql
+UPDATE sites SET protected = TRUE WHERE slug = 'my-real-customer';
+```
+
+### One-time Vercel team setting
+
+To make new child projects publicly accessible by default (without per-project toggling), change the team's deployment-protection default:
+1. Open https://vercel.com/teams/<your-team>/settings/security
+2. Find **Deployment Protection**.
+3. Set the default for new projects to **"Only Preview Deployments"** (or "Disabled").
+4. Save.
+
+Without this, every new child site requires manual disabling of Vercel Authentication before the public can view it.
+
 ## 🛠️ Architecture
 
-- **Workflow File**: `.github/workflows/main.yml`
+- **Build workflow**: `.github/workflows/main.yml` — triggered by issues/comments
+- **Cleanup workflow**: `.github/workflows/cleanup.yml` — scheduled, sweeps stale sites
+- **Scripts**: `scripts/*.sh` — focused bash scripts called from the workflow steps
+- **Schema**: `scripts/db/schema.sql` — Postgres tables for `sites` + `build_runs`
 - **Dependencies**: No complex frameworks. It generates vanilla HTML/CSS/JS for maximum speed and simplicity.
 - **Permissions**: Claude is configured via `.claude/settings.json` to safely bypass interactive prompts in CI/CD.
