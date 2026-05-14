@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Delete factory-generated sites that have been inactive for INACTIVE_DAYS days
 # and are not marked `protected` in the DB. Operates on three places per slug:
-#   1. GitHub repository  (needs GH_PAT with delete_repo scope)
+#   1. GitHub repository  (needs GH_TOKEN with delete_repo scope)
 #   2. Vercel project      (uses `vercel remove`, team scoping comes from the token)
 #   3. DB row              (build_runs cascades via FK)
 

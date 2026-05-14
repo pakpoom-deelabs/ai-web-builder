@@ -29,7 +29,7 @@ A long-lived OAuth token that lets the workflow authenticate as your Claude Pro 
 
 > Subscription quota is used instead of pay-per-API-call. If you prefer a developer API key, you'd need to modify `main.yml` to read `ANTHROPIC_API_KEY` instead.
 
-### 2. `GH_PAT` (GitHub Personal Access Token)
+### 2. `GH_TOKEN` (GitHub Personal Access Token)
 Required to create, push to, and delete child repositories.
 - Create a classic PAT at https://github.com/settings/tokens with scopes: **`repo`**, **`workflow`**, **`delete_repo`**.
 - `delete_repo` is only needed for the auto-cleanup workflow (see below); the build workflow works fine without it.

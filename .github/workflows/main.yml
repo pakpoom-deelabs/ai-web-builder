@@ -135,7 +135,7 @@ jobs:
       - name: Initialize Child Repo
         if: steps.decision.outputs.ACTION == 'build'
         env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
           REPO_NAME: ${{ steps.format-name.outputs.REPO_NAME }}
           REPO_OWNER: ${{ github.repository_owner }}
         run: bash scripts/init-child-repo.sh
@@ -157,7 +157,7 @@ jobs:
       - name: Commit and Push
         if: steps.decision.outputs.ACTION == 'build'
         env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
           REPO_NAME: ${{ steps.format-name.outputs.REPO_NAME }}
         run: bash scripts/commit-and-push.sh
 
