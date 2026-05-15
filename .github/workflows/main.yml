@@ -23,13 +23,23 @@ jobs:
       issues: write
 
     steps:
+      - name: Ensure issue labels exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+        run: |
+          gh label create "building" --color "0e8a16" --description "AI is generating code" --force --repo ${{ github.repository }} 2>/dev/null || true
+          gh label create "asking"   --color "fbca04" --description "Waiting for user clarification" --force --repo ${{ github.repository }} 2>/dev/null || true
+          gh label create "deployed" --color "1d76db" --description "Site deployed successfully" --force --repo ${{ github.repository }} 2>/dev/null || true
+          gh label create "failed"   --color "d73a4a" --description "Workflow failed" --force --repo ${{ github.repository }} 2>/dev/null || true
+
       - name: "\U0001F3F7\uFE0F Label: Building"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh issue edit ${{ github.event.issue.number }} \
             --repo ${{ github.repository }} \
-            --remove-label "deployed,failed" 2>/dev/null || true
+            --remove-label "deployed,failed,asking" 2>/dev/null || true
           gh issue edit ${{ github.event.issue.number }} \
             --repo ${{ github.repository }} \
             --add-label "building"
@@ -130,7 +140,7 @@ jobs:
             --remove-label "building" 2>/dev/null || true
           gh issue edit ${{ github.event.issue.number }} \
             --repo ${{ github.repository }} \
-            --add-label "waiting-for-user"
+            --add-label "asking"
 
       - name: Initialize Child Repo
         if: steps.decision.outputs.ACTION == 'build'
